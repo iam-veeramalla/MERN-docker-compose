@@ -1,6 +1,6 @@
 # A simple MERN stack application
 
-## Note - Run as containers using 
+**Note** - To run this project using `docker compose`, follow the below steps.
 
 Switch to the `compose` branch to learn the
 
