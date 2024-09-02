@@ -1,6 +1,7 @@
 # A simple MERN stack application
 
 ![alt text](1718252447422.gif)
+![alt text](image.png)
 
 **Note** - To run this project using `docker compose`, follow the below steps.
 
