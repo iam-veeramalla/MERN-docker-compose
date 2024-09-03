@@ -28,6 +28,8 @@ Open your browser and type `http://localhost:5173`
 ```sh
 cd mern/backend
 docker build -t mern-backend .
+
+Developers have mentioned the localhost in the files named record and recordlist if you are using the server change it to youripaddress
 ```
 
 ### Run the server
