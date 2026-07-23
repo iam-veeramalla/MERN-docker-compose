@@ -1,38 +1,40 @@
 services:
+
   backend:
-    build: ./mern/backend
+    image: dureti4/employee-management-backend:v1
     ports:
-      - "5050:5050" 
+      - "5050:5050"
     networks:
       - mern_network
     environment:
-      MONGO_URI: mongodb://mongo:27017/mydatabase  
+      MONGO_URI: mongodb://mongodb:27017/mydatabase
     depends_on:
       - mongodb
 
   frontend:
-    build: ./mern/frontend
+    image: dureti4/employee-management-frontend:v1
     ports:
-      - "5173:5173"  
+      - "5173:5173"
     networks:
       - mern_network
     environment:
-      REACT_APP_API_URL: http://backend:5050 
+      REACT_APP_API_URL: http://backend:5050
 
   mongodb:
-    image: mongo:latest  
+    image: mongo:7.0
     ports:
-      - "27017:27017"  
+      - "27017:27017"
     networks:
       - mern_network
     volumes:
-      - mongo-data:/data/db  
+      - mongo-data:/data/db
+
 
 networks:
   mern_network:
-    driver: bridge 
+    driver: bridge
+
 
 volumes:
   mongo-data:
-    driver: local  # Persist MongoDB data locally
-
+    driver: local

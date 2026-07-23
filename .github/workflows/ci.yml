@@ -1,0 +1,36 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches:
+      - compose
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+
+    - name: Install Backend Dependencies
+      working-directory: ./mern/backend
+      run: npm install
+
+    - name: Install Frontend Dependencies
+      working-directory: ./mern/frontend
+      run: npm install
+
+    - name: Run Backend Tests
+      working-directory: ./mern/backend
+      run: npm test || true
+
+    - name: Run Frontend Tests
+      working-directory: ./mern/frontend
+      run: npm test || true

@@ -16,8 +16,7 @@ RUN npm install
 # Inform Docker that the container is listening on the specified port at runtime
 EXPOSE 5173
 
-# Copy the rest of your app's source code from your host to your image filesystem
 COPY . .
 
-# Run the specified command within the container
+
 CMD ["npm", "run", "dev"]

@@ -1,83 +1,145 @@
 import express from "express";
-
-// This will help us connect to the database
 import db from "../db/connection.js";
-
-// This help convert the id from string to ObjectId for the _id.
 import { ObjectId } from "mongodb";
 
-// router is an instance of the express router.
-// We use it to define our routes.
-// The router will be added as a middleware and will take control of requests starting with path /record.
 const router = express.Router();
 
-// This section will help you get a list of all the records.
-router.get("/", async (req, res) => {
-  let collection = await db.collection("records");
-  let results = await collection.find({}).toArray();
-  res.send(results).status(200);
+function buildRecordFromBody(body) {
+  return {
+    name: body?.name?.trim() || "",
+    position: body?.position?.trim() || "",
+    level: body?.level?.trim() || "",
+  };
+}
+
+function isValidRecord(record) {
+  return Boolean(record.name && record.position && record.level);
+}
+
+router.get("/", async (_req, res) => {
+  try {
+    const collection = await db.collection("records");
+    const results = await collection.find({}).sort({ _id: -1 }).toArray();
+    res.status(200).json(results);
+  } catch (err) {
+    console.error("Failed to fetch records", err);
+    res.status(500).json({ message: "Error fetching records" });
+  }
 });
 
-// This section will help you get a single record by id
 router.get("/:id", async (req, res) => {
-  let collection = await db.collection("records");
-  let query = { _id: new ObjectId(req.params.id) };
-  let result = await collection.findOne(query);
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid record id" });
+    }
 
-  if (!result) res.send("Not found").status(404);
-  else res.send(result).status(200);
+    const collection = await db.collection("records");
+    const query = { _id: new ObjectId(req.params.id) };
+    const result = await collection.findOne(query);
+
+    if (!result) {
+      return res.status(404).json({ message: "Record not found" });
+    }
+
+    res.status(200).json(result);
+  } catch (err) {
+    console.error("Failed to fetch record", err);
+    res.status(500).json({ message: "Error fetching record" });
+  }
 });
 
-// This section will help you create a new record.
 router.post("/", async (req, res) => {
   try {
-    let newDocument = {
-      name: req.body.name,
-      position: req.body.position,
-      level: req.body.level,
-    };
-    let collection = await db.collection("records");
-    let result = await collection.insertOne(newDocument);
-    res.send(result).status(204);
+    const newDocument = buildRecordFromBody(req.body);
+    if (!isValidRecord(newDocument)) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const collection = await db.collection("records");
+    const result = await collection.insertOne(newDocument);
+    res.status(201).json({ insertedId: result.insertedId, ...newDocument });
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error adding record");
+    console.error("Failed to add record", err);
+    res.status(500).json({ message: "Error adding record" });
   }
 });
 
-// This section will help you update a record by id.
-router.patch("/:id", async (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid record id" });
+    }
+
     const query = { _id: new ObjectId(req.params.id) };
     const updates = {
-      $set: {
-        name: req.body.name,
-        position: req.body.position,
-        level: req.body.level,
-      },
+      $set: buildRecordFromBody(req.body),
     };
 
-    let collection = await db.collection("records");
-    let result = await collection.updateOne(query, updates);
-    res.send(result).status(200);
+    if (!isValidRecord(updates.$set)) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const collection = await db.collection("records");
+    const result = await collection.updateOne(query, updates);
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ message: "Record not found" });
+    }
+
+    res.status(200).json({ modifiedCount: result.modifiedCount });
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error updating record");
+    console.error("Failed to update record", err);
+    res.status(500).json({ message: "Error updating record" });
   }
 });
 
-// This section will help you delete a record
+router.patch("/:id", async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid record id" });
+    }
+
+    const query = { _id: new ObjectId(req.params.id) };
+    const updates = {
+      $set: buildRecordFromBody(req.body),
+    };
+
+    if (!isValidRecord(updates.$set)) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const collection = await db.collection("records");
+    const result = await collection.updateOne(query, updates);
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ message: "Record not found" });
+    }
+
+    res.status(200).json({ modifiedCount: result.modifiedCount });
+  } catch (err) {
+    console.error("Failed to update record", err);
+    res.status(500).json({ message: "Error updating record" });
+  }
+});
+
 router.delete("/:id", async (req, res) => {
   try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid record id" });
+    }
+
     const query = { _id: new ObjectId(req.params.id) };
+    const collection = await db.collection("records");
+    const result = await collection.deleteOne(query);
 
-    const collection = db.collection("records");
-    let result = await collection.deleteOne(query);
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ message: "Record not found" });
+    }
 
-    res.send(result).status(200);
+    res.status(200).json({ deletedCount: result.deletedCount });
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error deleting record");
+    console.error("Failed to delete record", err);
+    res.status(500).json({ message: "Error deleting record" });
   }
 });
 

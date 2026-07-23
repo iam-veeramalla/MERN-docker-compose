@@ -1,110 +1,111 @@
+/* eslint-disable react/prop-types */
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { api } from "../lib/api";
 
-const Record = (props) => (
-  <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-    <td className="p-4 align-middle [&amp;:has([role=checkbox])]:pr-0">
-      {props.record.name}
-    </td>
-    <td className="p-4 align-middle [&amp;:has([role=checkbox])]:pr-0">
-      {props.record.position}
-    </td>
-    <td className="p-4 align-middle [&amp;:has([role=checkbox])]:pr-0">
-      {props.record.level}
-    </td>
-    <td className="p-4 align-middle [&amp;:has([role=checkbox])]:pr-0">
+const Record = ({ record, deleteRecord, isDeleting }) => (
+  <tr className="border-b border-slate-200 bg-white text-sm text-slate-700">
+    <td className="px-4 py-3">{record.name}</td>
+    <td className="px-4 py-3">{record.position}</td>
+    <td className="px-4 py-3">{record.level}</td>
+    <td className="px-4 py-3">
       <div className="flex gap-2">
         <Link
-          className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-slate-100 h-9 rounded-md px-3"
-          to={`/edit/${props.record._id}`}
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+          to={`/edit/${record._id}`}
         >
           Edit
         </Link>
         <button
-          className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-slate-100 hover:text-accent-foreground h-9 rounded-md px-3"
-          color="red"
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
           type="button"
-          onClick={() => {
-            props.deleteRecord(props.record._id);
-          }}
+          onClick={() => deleteRecord(record._id)}
+          disabled={isDeleting}
         >
-          Delete
+          {isDeleting ? "Deleting..." : "Delete"}
         </button>
       </div>
     </td>
   </tr>
 );
 
-export default function RecordList() {
+export default function RecordList({ refreshTrigger = 0 }) {
   const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [deletingId, setDeletingId] = useState(null);
 
-  // This method fetches the records from the database.
-  useEffect(() => {
-    async function getRecords() {
-      const response = await fetch(`http://localhost:5050/record/`);
-      if (!response.ok) {
-        const message = `An error occurred: ${response.statusText}`;
-        console.error(message);
-        return;
-      }
-      const records = await response.json();
-      setRecords(records);
+  async function fetchRecords() {
+    try {
+      setLoading(true);
+      setError("");
+      const data = await api.get("/record");
+      setRecords(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err.message || "Unable to load employee records.");
+    } finally {
+      setLoading(false);
     }
-    getRecords();
-    return;
-  }, [records.length]);
+  }
 
-  // This method will delete a record
+  useEffect(() => {
+    fetchRecords();
+  }, [refreshTrigger]);
+
   async function deleteRecord(id) {
-    await fetch(`http://localhost:5050/record/${id}`, {
-      method: "DELETE",
-    });
-    const newRecords = records.filter((el) => el._id !== id);
-    setRecords(newRecords);
+    try {
+      setDeletingId(id);
+      setError("");
+      setSuccessMessage("");
+      await api.delete(`/record/${id}`);
+      setSuccessMessage("Employee deleted successfully.");
+      await fetchRecords();
+    } catch (err) {
+      setError(err.message || "Unable to delete the employee record.");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
-  // This method will map out the records on the table
-  function recordList() {
-    return records.map((record) => {
-      return (
-        <Record
-          record={record}
-          deleteRecord={() => deleteRecord(record._id)}
-          key={record._id}
-        />
-      );
-    });
-  }
-
-  // This following section will display the table with the records of individuals.
   return (
-    <>
-      <h3 className="text-lg font-semibold p-4">Employee Records</h3>
-      <div className="border rounded-lg overflow-hidden">
-        <div className="relative w-full overflow-auto">
-          <table className="w-full caption-bottom text-sm">
-            <thead className="[&amp;_tr]:border-b">
-              <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&amp;:has([role=checkbox])]:pr-0">
-                  Name
-                </th>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&amp;:has([role=checkbox])]:pr-0">
-                  Position
-                </th>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&amp;:has([role=checkbox])]:pr-0">
-                  Level
-                </th>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&amp;:has([role=checkbox])]:pr-0">
-                  Action
-                </th>
+    <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold text-slate-800">Employee List</h3>
+        <p className="text-sm text-slate-500">Current records in the system.</p>
+      </div>
+
+      {error ? <div className="mb-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div> : null}
+      {successMessage ? <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{successMessage}</div> : null}
+
+      <div className="overflow-hidden rounded-md border border-slate-200">
+        {loading ? (
+          <div className="p-4 text-sm text-slate-500">Loading records...</div>
+        ) : records.length === 0 ? (
+          <div className="p-4 text-sm text-slate-500">No employee records found yet.</div>
+        ) : (
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-slate-50 text-slate-600">
+              <tr>
+                <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Position</th>
+                <th className="px-4 py-3 font-medium">Level</th>
+                <th className="px-4 py-3 font-medium">Actions</th>
               </tr>
             </thead>
-            <tbody className="[&amp;_tr:last-child]:border-0">
-              {recordList()}
+            <tbody>
+              {records.map((record) => (
+                <Record
+                  record={record}
+                  deleteRecord={() => deleteRecord(record._id)}
+                  isDeleting={deletingId === record._id}
+                  key={record._id}
+                />
+              ))}
             </tbody>
           </table>
-        </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }
